@@ -9,6 +9,7 @@ import me.reimnop.d4f.utils.Compatibility;
 import me.reimnop.d4f.utils.Utils;
 import me.reimnop.d4f.utils.VariableTimer;
 import me.reimnop.d4f.utils.text.TextUtils;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.Message;
@@ -247,6 +248,37 @@ public final class MinecraftEventListeners {
                     MessageType.SYSTEM);
         });
 
+        ServerMessageEvents.COMMAND_MESSAGE.register((message, sender, typeKey) -> {
+            String content = message.raw().getContent().getString();
+
+            // Parse emojis
+            content = TextUtils.regexDynamicReplaceString(
+                content,
+                EMOTE_PATTERN,
+                match -> {
+                    String emoteName = match.group("name");
+                    Emote emote = discord.findEmote(emoteName);
+                    if (emote != null) {
+                        return emote.getAsMention();
+                    }
+                    return match.group();
+                }
+            );
+
+            String finalContent = content;
+
+            int rgb = message.raw().getContent().getStyle().getColor() != null ?
+                message.raw().getContent().getStyle().getColor().getRgb() :
+                16777216;
+
+
+            EmbedBuilder eb = new EmbedBuilder()
+                .setAuthor(finalContent)
+                .setColor(rgb);
+
+            discord.sendEmbedMessage(eb);
+        });
+
         ServerMessageEvents.CHAT_MESSAGE.register((message, sender, typeKey) -> {
             MinecraftServer server = (MinecraftServer) FabricLoader.getInstance().getGameInstance();
 
@@ -349,14 +381,7 @@ public final class MinecraftEventListeners {
                     placeholder -> Utils.getPlaceholderHandler(placeholder, placeholders)
             );
 
-            Text desc = Placeholders.parseText(
-                    TextParserUtils.formatText(config.playerJoinDescription),
-                    PlaceholderContext.of(player),
-                    Placeholders.PLACEHOLDER_PATTERN,
-                    placeholder -> Utils.getPlaceholderHandler(placeholder, placeholders)
-            );
-
-            discord.sendEmbedMessageUsingPlayerAvatar(player, Color.green, msg.getString(), desc.getString());
+            discord.sendPlayerMessage(player, player.getName(), msg);
         });
 
         PlayerDisconnectedCallback.EVENT.register((player, server, fromVanish) -> {
@@ -381,14 +406,7 @@ public final class MinecraftEventListeners {
                     placeholder -> Utils.getPlaceholderHandler(placeholder, placeholders)
             );
 
-            Text desc = Placeholders.parseText(
-                    TextParserUtils.formatText(config.playerLeftDescription),
-                    PlaceholderContext.of(player),
-                    Placeholders.PLACEHOLDER_PATTERN,
-                    placeholder -> Utils.getPlaceholderHandler(placeholder, placeholders)
-            );
-
-            discord.sendEmbedMessageUsingPlayerAvatar(player, Color.red, msg.getString(), desc.getString());
+            discord.sendPlayerMessage(player, player.getName(), msg);
         });
 
         PlayerDeathCallback.EVENT.register(((playerEntity, source, deathMessage) -> {
@@ -407,14 +425,7 @@ public final class MinecraftEventListeners {
                     placeholder -> Utils.getPlaceholderHandler(placeholder, placeholders)
             );
 
-            Text desc = Placeholders.parseText(
-                    TextParserUtils.formatText(config.deathDescription),
-                    PlaceholderContext.of(playerEntity),
-                    Placeholders.PLACEHOLDER_PATTERN,
-                    placeholder -> Utils.getPlaceholderHandler(placeholder, placeholders)
-            );
-
-            discord.sendEmbedMessageUsingPlayerAvatar(playerEntity, Color.black, msg.getString(), desc.getString());
+            discord.sendPlayerMessage(playerEntity, playerEntity.getName(), msg);
         }));
     }
 }
